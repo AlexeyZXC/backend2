@@ -29,7 +29,7 @@ func (gm *GroupMapper) Fields(g *domain.Group) []any {
 	return []any{&g.ID, &g.Name, &g.Type}
 }
 
-func (gm *GroupMapper) SelectGroup(ctx context.Context, c string, v ...interface{}) (*domain.Group, error) {
+func (gm *GroupMapper) SelectGroup(ctx context.Context, c string, v ...any) (*domain.Group, error) {
 	g := &domain.Group{}
 
 	// такой вызов либо использует уже запущенную ранее в uow транзакцию, либо запустит новую
@@ -49,18 +49,19 @@ func (gm *GroupMapper) SelectGroup(ctx context.Context, c string, v ...interface
 	return g, nil
 }
 
-func (gm *GroupMapper) CreateGroup(ctx context.Context, name string, groupType domain.GroupType) (*domain.Group, error) {
-	g := &domain.Group{}
+// func (gm *GroupMapper) CreateGroup(ctx context.Context, name string, groupType domain.GroupType) (*domain.Group, error) {
+func (gm *GroupMapper) SaveGroup(ctx context.Context, g *domain.Group) error {
+	// g := &domain.Group{}
 
 	if err := gm.uow.WithTx(ctx, func(uowtx uow.UnitOfWork) error {
 		return uowtx.Tx().QueryRowContext(ctx,
 			fmt.Sprintf(`INSERT INTO groups(name, groupType)
 					 	VALUES($1, $2)
-	 					RETURNING %s`, gm.Columns()), name, groupType).Scan(gm.Fields(g))
+	 					RETURNING %s`, gm.Columns()), g.Name, g.Type).Scan(gm.Fields(g))
 	}); err != nil {
-		return nil, err
+		return err
 	}
-	return g, nil
+	return nil
 }
 
 func (gm *GroupMapper) AddUser(ctx context.Context, userID, groupID int) error {

@@ -28,7 +28,7 @@ func (um *UserMapper) Fields(u *domain.User) []any {
 	return []any{&u.ID, &u.Name, &u.Email, &u.CreatedAt}
 }
 
-func (um *UserMapper) SelectUser(ctx context.Context, c string, v ...interface{}) (*domain.User, error) {
+func (um *UserMapper) SelectUser(ctx context.Context, c string, v ...any) (*domain.User, error) {
 	u := &domain.User{}
 
 	// такой вызов либо использует уже запущенную ранее в uow транзакцию, либо запустит новую
@@ -48,18 +48,19 @@ func (um *UserMapper) SelectUser(ctx context.Context, c string, v ...interface{}
 	return u, nil
 }
 
-func (um *UserMapper) CreateUser(ctx context.Context, name, email, pw string) (*domain.User, error) {
-	u := &domain.User{}
+// func (um *UserMapper) CreateUser(ctx context.Context, name, email, pw string) (*domain.User, error) {
+func (um *UserMapper) SaveUser(ctx context.Context, u *domain.User) error {
+	// u := &domain.User{}
 
 	if err := um.uow.WithTx(ctx, func(uowtx uow.UnitOfWork) error {
 		return uowtx.Tx().QueryRowContext(ctx,
 			fmt.Sprintf(`INSERT INTO users(name, email, password)
 					 	VALUES($1, $2, crypt($3, gen_salt('bf', 8)))
-	 					RETURNING %s`, um.Columns()), name, email, pw).Scan(um.Fields(u))
+	 					RETURNING %s`, um.Columns()), u.Name, u.Email, u.PW).Scan(um.Fields(u))
 	}); err != nil {
-		return nil, err
+		return err
 	}
-	return u, nil
+	return nil
 }
 
 func (um *UserMapper) FindUserByEmail(ctx context.Context, email string) (*domain.User, error) {

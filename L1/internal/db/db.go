@@ -1,9 +1,7 @@
 package db
 
 type DB struct {
-	// Um UserMapper
 	UserMapper
-	// Gm GroupMapper
 	GroupMapper
 }
 
