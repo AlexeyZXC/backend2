@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -55,6 +56,7 @@ func handler(c echo.Context) error {
 }
 
 func heartbeatHandler(c echo.Context) error {
+	log.Printf("heartbeatHandler: url: %v", c.Request().URL.Path)
 	return c.NoContent(http.StatusOK)
 }
 

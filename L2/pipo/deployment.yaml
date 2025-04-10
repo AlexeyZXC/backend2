@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pipo
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: pipo
+  template:
+    metadata:
+      labels:
+        app: pipo
+    spec:
+      containers:
+        - name: pipo
+          image: mypc.ru:5000/pipo:1.0.0
+          imagePullPolicy: Always
+          env:
+          - name: PIPOMASTER
+            value: "1"
+          - name: PIPOSLAVENAME
+            value: "pipo-slave-srv"
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            timeoutSeconds: 1

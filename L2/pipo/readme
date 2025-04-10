@@ -1,0 +1,38 @@
+ENV PIPOMASTER=$PIPOMASTER PIPOMASTERNAME=pipoMaster PIPOSLAVENAME=pipoSlave
+
+docker run -d -p 8080:8080 -e PIPOMASTER='1' -e PIPOMASTERNAME='pipoMaster' -e PIPOSLAVENAME='pipoSlave'  pipo:1.0.0 
+docker run -d -p 8080:8080 -e PIPOMASTER='0' -e PIPOMASTERNAME='pipoMaster' -e PIPOSLAVENAME='pipoSlave'  pipo:1.0.0 
+
+-- remove image from local registry
+
+docker run -d -p 5000:5000 --restart=always --name registry -e REGISTRY_STORAGE_DELETE_ENABLED=true registry:2.7
+
+registry='localhost:5000'
+name='pipo'
+curl -v -sSL -X DELETE "http://${registry}/v2/${name}/manifests/$(
+    curl -sSL -I \
+        -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+        "http://${registry}/v2/${name}/manifests/$(
+            curl -sSL "http://${registry}/v2/${name}/tags/list" | jq -r '.tags[0]'
+        )" \
+    | awk '$1 == "Docker-Content-Digest:" { print $2 }' \
+    | tr -d $'\r' \
+)"
+
+registry='localhost:5000'
+name='pipo'
+curl -v -sSL -X DELETE "http://${registry}/v2/${name}/manifests/$(
+    curl -sSL -I \
+        -H "Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.oci.image.index.v1+json" -X GET  \
+        "http://${registry}/v2/${name}/manifests/$(
+            curl -sSL "http://${registry}/v2/${name}/tags/list" | jq -r '.tags[0]'
+        )" \
+    | awk '$1 == "docker-content-digest:" { print $2 }' \
+    | tr -d $'\r' \
+)"
+
+Finally, invoke garbage cleanup on the docker-registry container.
+For example:
+
+docker exec -it docker-registry bin/registry garbage-collect /etc/docker/registry/config.yml
+docker exec -it 944a16fe3a76 bin/registry garbage-collect /etc/docker/registry/config.yml

@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    ingress.kubernetes.io/rewrite-target: /
+  labels:
+    app: k8s-go-app-ing
+  name: k8s-go-app-ing
+spec:
+  backend:
+    serviceName: k8s-go-app-srv
+    servicePort: 9090
+  rules:
+  - host: k8s-go-app.host
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: k8s-go-app-srv
+          servicePort: 8080

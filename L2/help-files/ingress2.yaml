@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: k8s-go-app-ing
+spec:  
+  rules:
+  - host: "k8s-go-app.host"
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: k8s-go-app-srv
+            port:
+              number: 9090
