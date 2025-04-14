@@ -1,4 +1,4 @@
-VERSION := 1.0.0
+VERSION := 1.0.5
 PIPOMASTER := 1
 
 build_container:

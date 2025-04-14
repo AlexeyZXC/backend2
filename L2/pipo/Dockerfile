@@ -9,7 +9,8 @@ COPY . ${WORKDIR}
 WORKDIR ${WORKDIR}
 
 # RUN go build -ldflags="-X /home/user/sources/geekBrains/backend2/L2/pipo/main.version=${VERSION}" -o ${GOPATH}/bin/pipo ./
-RUN go install -ldflags="-X /home/user/sources/geekBrains/backend2/L2/pipo/main.version=${VERSION}" 
+# go install -ldflags="-X /home/user/sources/geekBrains/backend2/L2/pipo/version.Version=1.0.a" 
+RUN go install -ldflags="-X pipo/version.Version=${VERSION}" 
 
 FROM golang:1.24.2
 
