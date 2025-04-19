@@ -132,7 +132,7 @@ func PostRateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("PostRateHandler: send ok: %v", rate)
+	log.Printf("PostRateHandler: send ok: %v\n", rate)
 }
 
 func getTopic(topicAddr string) *pubsub.Topic {
