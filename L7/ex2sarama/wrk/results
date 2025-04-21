@@ -1,0 +1,25 @@
+go run main.go results:
+
+wrk.lua file:
+    math.randomseed(os.time())
+    request = function()
+    local k = math.random(0, 10)
+    local url = "/rate?rate="..k
+    return wrk.format("POST", url)
+    end
+
+cmd to run wrk:    
+    wrk -c5 -t5 -d1m -s ./wrk.lua 'http://127.0.0.1:8081'
+
+results    
+    Running 1m test @ http://127.0.0.1:8080
+    5 threads and 5 connections
+    Thread Stats   Avg      Stdev     Max   +/- Stdev
+        Latency    12.33ms   30.39ms 312.78ms   90.39%
+        Req/Sec     1.15k   471.13     2.76k    66.66%
+    336178 requests in 1.00m, 24.05MB read
+    Requests/sec:   5600.26
+    Transfer/sec:    410.18KB
+
+-----------------------------------
+

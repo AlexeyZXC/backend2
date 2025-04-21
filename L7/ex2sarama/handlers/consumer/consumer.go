@@ -4,10 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 
 	"github.com/IBM/sarama"
 )
@@ -20,9 +17,11 @@ type Reader struct {
 	cancelFunc   context.CancelFunc
 	brokers      []string
 	group        string
+	wgInternal   sync.WaitGroup
+	wgExternal   *sync.WaitGroup
 }
 
-func NewReader(topic []string, kafkaVersion string, brokers []string, group string) (*Reader, <-chan byte) {
+func NewReader(topic []string, kafkaVersion string, brokers []string, group string, wg *sync.WaitGroup) (*Reader, <-chan byte) {
 	version, err := sarama.ParseKafkaVersion(kafkaVersion)
 	if err != nil {
 		log.Panicf("Error parsing Kafka version: %v", err)
@@ -37,6 +36,7 @@ func NewReader(topic []string, kafkaVersion string, brokers []string, group stri
 			KafkaVersion: version,
 			brokers:      brokers,
 			group:        group,
+			wgExternal:   wg,
 		},
 		msgs
 }
@@ -50,16 +50,21 @@ func (r *Reader) Start() {
 	)
 
 	ctx, r.cancelFunc = context.WithCancel(context.Background())
+
 	client, err := sarama.NewConsumerGroup(r.brokers, r.group, config)
 	if err != nil {
 		log.Panicf("Error creating consumer group client: %v", err)
 	}
 
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
+	r.wgInternal.Add(1)
 	go func() {
-		defer wg.Done()
+		defer func() {
+			log.Println("consumer loop done")
+			r.wgInternal.Done()
+		}()
+
 		for {
+			log.Println("consumer loop")
 			// `Consume` should be called inside an infinite loop, when a
 			// server-side rebalance happens, the consumer session will need to be
 			// recreated to get the new claims
@@ -72,6 +77,7 @@ func (r *Reader) Start() {
 			}
 			// check if context was cancelled, signaling that the consumer should stop
 			if ctx.Err() != nil {
+				log.Println("consumer loop: context errror: ", ctx.Err().Error())
 				return
 			}
 			// consumer.ready = make(chan bool)
@@ -81,42 +87,16 @@ func (r *Reader) Start() {
 
 	<-r.consumer.ready // Await till the consumer has been set up
 	log.Println("Sarama consumer up and running!...")
-
-	// sigusr1 := make(chan os.Signal, 1)
-	// signal.Notify(sigusr1, syscall.SIGUSR1)
-
-	sigterm := make(chan os.Signal, 1)
-	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
-
-	keepRunning := true
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for keepRunning {
-			select {
-			case <-ctx.Done():
-				log.Println("terminating: context cancelled")
-				keepRunning = false
-			case <-sigterm:
-				log.Println("terminating: via signal")
-				keepRunning = false
-				// case <-sigusr1:
-				// 	toggleConsumptionFlow(client, &consumptionIsPaused)
-			}
-		}
-	}()
-
-	wg.Wait()
-	r.cancelFunc()
-
-	if err = client.Close(); err != nil {
-		log.Panicf("Error closing client: %v", err)
-	}
 }
 
 func (r *Reader) Stop() {
+	log.Println("consumer stopping...")
 	r.cancelFunc()
+	log.Println("consumer stopping...1")
+	r.wgInternal.Wait()
+	log.Println("consumer stopping...2")
+	r.wgExternal.Done()
+	log.Println("consumer stopped")
 }
 
 // consumer represents a Sarama consumer group consumer
@@ -160,10 +140,15 @@ func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				log.Printf("message channel was closed")
 				return nil
 			}
-			log.Printf("Message claimed: value = %s, timestamp = %v, topic = %s", string(message.Value), message.Timestamp, message.Topic)
+			// log.Printf("Message claimed: value = %s, timestamp = %v, topic = %s", string(message.Value), message.Timestamp, message.Topic)
 			for _, b := range message.Value {
-				// consumer.Msgs <- b
-				log.Printf("value(%v)\n", b)
+				consumer.Msgs <- b
+				// log.Printf("value(%v)\n", b)
+				log.Printf("Message claimed: value(%v) timestamp(%v) topic(%s)\n", b, message.Timestamp, message.Topic)
+
+			}
+			if len(message.Value) == 0 {
+				log.Printf("message value is empty")
 			}
 			session.MarkMessage(message, "")
 		// Should return when `session.Context()` is done.
