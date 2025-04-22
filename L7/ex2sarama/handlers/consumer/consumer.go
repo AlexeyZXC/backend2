@@ -27,7 +27,7 @@ func NewReader(topic []string, kafkaVersion string, brokers []string, group stri
 		log.Panicf("Error parsing Kafka version: %v", err)
 	}
 
-	msgs := make(chan byte, 10)
+	msgs := make(chan byte, 1000)
 
 	return &Reader{
 			Topics: topic,
@@ -145,7 +145,6 @@ func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				consumer.Msgs <- b
 				// log.Printf("value(%v)\n", b)
 				log.Printf("Message claimed: value(%v) timestamp(%v) topic(%s)\n", b, message.Timestamp, message.Topic)
-
 			}
 			if len(message.Value) == 0 {
 				log.Printf("message value is empty")

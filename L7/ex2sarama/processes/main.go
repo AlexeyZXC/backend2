@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -16,17 +19,24 @@ var (
 	producer sarama.AsyncProducer
 	rateCH   <-chan byte
 	totalCH  chan<- byte
+
+	VERSION = "0.0.0"
+	// KAFKA_BROKERS = "localhost:9092"
+	// KAFKA_VERSION = "4.0.0"
 )
 
 const (
-	KAFKA_BROKERS = "localhost:9092"
-	KAFKA_VERSION = "4.0.0"
-	TOPIC_RATE    = "rate"
-	TOPIC_TOTAL   = "total"
-	GROUP         = "rateGroup"
+	TOPIC_RATE  = "rate"
+	TOPIC_TOTAL = "total"
+	GROUP       = "rateGroup"
 )
 
 func main() {
+	KAFKA_BROKERS := os.Getenv("KAFKA_BROKERS")
+	KAFKA_VERSION := os.Getenv("KAFKA_VERSION")
+
+	log.Printf("--- Starting processes --- Version(%v) KAFKA_VERSION(%v) KAFKA_BROKERS(%v) \n", VERSION, KAFKA_VERSION, KAFKA_BROKERS)
+
 	//kafka stuff
 	brokerList := []string{KAFKA_BROKERS}
 	kafkaVersion, err := sarama.ParseKafkaVersion(KAFKA_VERSION)
@@ -66,6 +76,28 @@ func main() {
 		}
 	}()
 
+	//http
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthcheck", HealthCheck)
+
+	s := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
+
+	wg.Add(1)
+	go func() {
+		defer func() {
+			log.Println("http server stopped")
+			wg.Done()
+		}()
+
+		if err := s.ListenAndServe(); err != http.ErrServerClosed {
+			// panic(fmt.Errorf("error on listen and serve: %v", err))
+			log.Println(fmt.Errorf("error on http listen and serve: %v", err))
+		}
+	}()
+
 	//stop stuff
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
@@ -84,10 +116,17 @@ func main() {
 			case <-sigterm:
 				log.Println("terminating: via signal")
 
+				err := s.Shutdown(context.Background())
+				if err != nil {
+					log.Println("error on http shutdown: ", err)
+				}
+				log.Println("http shutdown done", err)
+
 				err = producer.Close()
 				if err != nil {
 					log.Println("error on producer close: ", err)
 				}
+				log.Println("producer close done", err)
 
 				reader.Stop()
 				break stop
@@ -101,4 +140,8 @@ func main() {
 
 	wg.Wait()
 	log.Println("main processes done")
+}
+
+func HealthCheck(w http.ResponseWriter, r *http.Request) {
+
 }

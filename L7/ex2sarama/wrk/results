@@ -9,7 +9,7 @@ wrk.lua file:
     end
 
 cmd to run wrk:    
-    wrk -c5 -t5 -d1m -s ./wrk.lua 'http://127.0.0.1:8081'
+    wrk -c5 -t5 -d1m -s ./wrk.lua 'http://127.0.0.1:8080'
 
 results    
     Running 1m test @ http://127.0.0.1:8080
@@ -22,4 +22,48 @@ results
     Transfer/sec:    410.18KB
 
 -----------------------------------
+in docker compose:
+
+Running 1m test @ http://127.0.0.1:8080
+  5 threads and 5 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   592.39us  442.52us  10.95ms   85.92%
+    Req/Sec     1.82k   258.82     2.63k    68.87%
+  543499 requests in 1.00m, 38.87MB read
+Requests/sec:   9056.25
+Transfer/sec:    663.30KB
+
+
+Running 1m test @ http://127.0.0.1:8080
+  5 threads and 5 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   703.08us  582.25us  11.01ms   89.22%
+    Req/Sec     1.57k   308.04     2.29k    71.87%
+  467662 requests in 1.00m, 33.45MB read
+Requests/sec:   7789.27
+Transfer/sec:    570.50KB
+
+Running 1m test @ http://127.0.0.1:8080
+  5 threads and 5 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   620.61us  484.79us  10.63ms   87.16%
+    Req/Sec     1.76k   330.48     2.54k    69.97%
+  524851 requests in 1.00m, 37.54MB read
+Requests/sec:   8743.54
+Transfer/sec:    640.40KB
+
+avg(4.99); version(1.0.5); iter(524851)
+
+Running 1m test @ http://127.0.0.1:8080
+  5 threads and 5 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   595.84us  461.51us  12.41ms   87.17%
+    Req/Sec     1.83k   313.13     2.68k    73.33%
+  545655 requests in 1.00m, 39.03MB read
+Requests/sec:   9091.98
+Transfer/sec:    665.92KB
+
+avg(4.99); version(1.0.6); iter(545656)
+
+-----------------------------------------------
 

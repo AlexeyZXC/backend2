@@ -17,32 +17,40 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/IBM/sarama"
 )
 
-// KAFKA_BROKERS=localhost:9092 go run main.go
+// KAFKA_BROKERS=localhost:9092 KAFKA_VERSION=4.0.0 go run main.go
 // KAFKA_BROKERS=127.0.0.1:9092 go run main.go
 
 var (
 	producer sarama.AsyncProducer
 	totalCH  <-chan byte
+	VERSION  = "0.0.0"
+	// KAFKA_BROKERS = "localhost:9092"
+	// KAFKA_VERSION = "4.0.0"
 )
 
 const (
-	KAFKA_BROKERS = "localhost:9092"
-	KAFKA_VERSION = "4.0.0"
-	TOPIC_RATE    = "rate"
-	TOPIC_TOTAL   = "total"
-	GROUP         = "totalGroup"
+	TOPIC_RATE  = "rate"
+	TOPIC_TOTAL = "total"
+	GROUP       = "totalGroup"
 )
 
 func main() {
+
+	KAFKA_BROKERS := os.Getenv("KAFKA_BROKERS")
+	KAFKA_VERSION := os.Getenv("KAFKA_VERSION")
+
+	log.Printf("--- start --- KAFKA_BROKERS(%v) KAFKA_VERSION(%v)\n", KAFKA_BROKERS, KAFKA_VERSION)
 
 	//http
 	mux := http.NewServeMux()
 	mux.HandleFunc("/rate", PostRateHandler)
 	mux.HandleFunc("/total", GetTotalHandler)
+	mux.HandleFunc("/healthcheck", HealthCheck)
 
 	s := &http.Server{
 		Addr:    ":8080",
@@ -129,44 +137,62 @@ func main() {
 	log.Println("main stopped")
 }
 
+func HealthCheck(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func GetTotalHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("GetTotalHandler: got request")
 	var (
-		sum  int
-		iter int
+		sum       int
+		iter      int
+		iter_prev int
 	)
 
+	stop := time.After(time.Millisecond * 500)
+
+stop_label:
 	for {
 		select {
+		case <-stop:
+			if iter != iter_prev {
+				iter_prev = iter
+				stop = time.After(time.Millisecond * 500)
+			} else {
+				break stop_label
+			}
 		case value := <-totalCH:
 			sum += int(value)
 			iter++
-			log.Println("GetTotalHandler: got value: ", value)
+			// log.Println("GetTotalHandler: got value: ", value)
+			log.Println("GetTotalHandler: got value, iter: ", iter)
 		default:
-			if sum != 0 {
-				res := float32(sum) / float32(iter)
-				w.Write([]byte(fmt.Sprintf("%.2f\n", res)))
-			} else {
-				w.Write([]byte("no data\n"))
-			}
-			return
+			time.Sleep(time.Millisecond * 1)
 		}
-
-		// value, ok := <-totalCH
-		// if !ok {
-		// 	log.Println("GetTotalHandler: no value in channel")
-		// 	if sum != 0 {
-		// 		res := float32(sum) / float32(iter)
-		// 		w.Write([]byte(fmt.Sprintf("%.2f", res)))
-		// 	} else {
-		// 		w.Write([]byte("no data"))
-		// 	}
-		// 	return
-		// }
-		// log.Println("GetTotalHandler: got value: ", value)
-		// sum += int(value)
-		// iter++
 	}
+
+	if iter != 0 {
+		res := fmt.Sprintf("avg(%.2f); version(%v); iter(%v)) \n", float32(sum)/float32(iter), VERSION, iter)
+		w.Write([]byte(res))
+	} else {
+		res := fmt.Sprintf("no data; version(%v)\n", VERSION)
+		w.Write([]byte(res))
+	}
+
+	// value, ok := <-totalCH
+	// if !ok {
+	// 	log.Println("GetTotalHandler: no value in channel")
+	// 	if sum != 0 {
+	// 		res := float32(sum) / float32(iter)
+	// 		w.Write([]byte(fmt.Sprintf("%.2f", res)))
+	// 	} else {
+	// 		w.Write([]byte("no data"))
+	// 	}
+	// 	return
+	// }
+	// log.Println("GetTotalHandler: got value: ", value)
+	// sum += int(value)
+	// iter++
 
 	// sub, err := getSubscription(totalAddr)
 	// if err != nil {
