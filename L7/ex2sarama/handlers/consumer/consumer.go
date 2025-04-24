@@ -92,6 +92,8 @@ func (r *Reader) Start() {
 func (r *Reader) Stop() {
 	log.Println("consumer stopping...")
 	r.cancelFunc()
+	log.Println("consumer stopping...0")
+	close(r.consumer.Msgs)
 	log.Println("consumer stopping...1")
 	r.wgInternal.Wait()
 	log.Println("consumer stopping...2")
@@ -101,19 +103,22 @@ func (r *Reader) Stop() {
 
 // consumer represents a Sarama consumer group consumer
 type consumer struct {
-	ready chan bool
-	Msgs  chan byte
+	ready  chan bool
+	Msgs   chan byte
+	doneCH chan struct{}
 }
 
 func newConsumer(msgs chan byte) *consumer {
 	return &consumer{
-		ready: make(chan bool),
-		Msgs:  msgs,
+		ready:  make(chan bool),
+		Msgs:   msgs,
+		doneCH: make(chan struct{}),
 	}
 }
 
 // Setup is run at the beginning of a new session, before ConsumeClaim
 func (consumer *consumer) Setup(sarama.ConsumerGroupSession) error {
+	log.Println("consumer setup")
 	// Mark the consumer as ready
 	close(consumer.ready)
 	return nil
@@ -121,7 +126,8 @@ func (consumer *consumer) Setup(sarama.ConsumerGroupSession) error {
 
 // Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited
 func (consumer *consumer) Cleanup(sarama.ConsumerGroupSession) error {
-	close(consumer.Msgs)
+	log.Println("consumer cleanup")
+	// consumer.doneCH <- struct{}{}
 	return nil
 }
 
@@ -137,24 +143,32 @@ func (consumer *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 		select {
 		case message, ok := <-claim.Messages():
 			if !ok {
-				log.Printf("message channel was closed")
+				log.Printf("ConsumeClaim: message channel was closed")
 				return nil
 			}
-			// log.Printf("Message claimed: value = %s, timestamp = %v, topic = %s", string(message.Value), message.Timestamp, message.Topic)
+			log.Printf("ConsumeClaim: Message claimed: valueLen(%v) timestamp(%v) topic(%v) Partition(%v) Offset(%v) Headers(%+v)\n",
+				len(message.Value), message.Timestamp, message.Topic, message.Partition, message.Offset, message.Headers)
 			for _, b := range message.Value {
 				consumer.Msgs <- b
-				// log.Printf("value(%v)\n", b)
-				log.Printf("Message claimed: value(%v) timestamp(%v) topic(%s)\n", b, message.Timestamp, message.Topic)
+				log.Printf("ConsumeClaim: value(%v)\n", b)
+				if session.Context().Err() != nil {
+					log.Printf("ConsumeClaim: session context error: %v", session.Context().Err())
+					return nil
+				}
 			}
 			if len(message.Value) == 0 {
-				log.Printf("message value is empty")
+				log.Printf("ConsumeClaim: message value is empty")
 			}
 			session.MarkMessage(message, "")
 		// Should return when `session.Context()` is done.
 		// If not, will raise `ErrRebalanceInProgress` or `read tcp <ip>:<port>: i/o timeout` when kafka rebalance. see:
 		// https://github.com/IBM/sarama/issues/1192
 		case <-session.Context().Done():
+			log.Printf("ConsumeClaim: session context done err: %v\n", session.Context().Err())
 			return nil
+			// case <-consumer.doneCH:
+			// 	log.Printf("ConsumeClaim: done channel done\n")
+			// 	return nil
 		}
 	}
 }

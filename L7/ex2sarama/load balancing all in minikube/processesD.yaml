@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: processes
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: processes
+  template:
+    metadata:
+      labels:
+        app: processes
+    spec:
+      containers:
+        - name: processes
+          image: mypc.ru:5000/processes:1.0.5
+          imagePullPolicy: Always
+          env:
+          - name: KAFKA_BROKERS
+            value: "kafka:9092"
+          - name: KAFKA_VERSION
+            value: "4.0.0"
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /hc
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /hc
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            timeoutSeconds: 1

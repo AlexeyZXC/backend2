@@ -1,0 +1,4 @@
+as ingress listen to 80 port, the cmd is ok:
+    curl handlers.host/total
+
+load balancing ok 

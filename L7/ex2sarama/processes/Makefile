@@ -1,5 +1,5 @@
 #  make -f processes/Makefile build_container
-VERSION := 1.0.4
+VERSION := 1.0.8
 
 build_container:
 	cd ..

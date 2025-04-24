@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: handlersI
+spec:  
+  rules:
+  - host: "handlers.host"
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: handlersS
+            port:
+              number: 8080

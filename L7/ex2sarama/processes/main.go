@@ -15,6 +15,8 @@ import (
 	"handlers/consumer"
 )
 
+// KAFKA_BROKERS=kafka:9092 KAFKA_VERSION=4.0.0 go run main.go
+
 var (
 	producer sarama.AsyncProducer
 	rateCH   <-chan byte
@@ -78,7 +80,7 @@ func main() {
 
 	//http
 	mux := http.NewServeMux()
-	mux.HandleFunc("/healthcheck", HealthCheck)
+	mux.HandleFunc("/hc", HealthCheck)
 
 	s := &http.Server{
 		Addr:    ":8080",

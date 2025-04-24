@@ -24,11 +24,14 @@ import (
 
 // KAFKA_BROKERS=localhost:9092 KAFKA_VERSION=4.0.0 go run main.go
 // KAFKA_BROKERS=127.0.0.1:9092 go run main.go
+// KAFKA_BROKERS=kafka:9092 KAFKA_VERSION=4.0.0 HTTP_PORT=8080 ./main
 
 var (
 	producer sarama.AsyncProducer
 	totalCH  <-chan byte
-	VERSION  = "0.0.0"
+	sigterm  = make(chan os.Signal, 1)
+
+	VERSION = "0.0.0"
 	// KAFKA_BROKERS = "localhost:9092"
 	// KAFKA_VERSION = "4.0.0"
 )
@@ -43,6 +46,8 @@ func main() {
 
 	KAFKA_BROKERS := os.Getenv("KAFKA_BROKERS")
 	KAFKA_VERSION := os.Getenv("KAFKA_VERSION")
+	// HTTP_PORT := os.Getenv("HTTP_PORT")
+	HTTP_PORT := "8080"
 
 	log.Printf("--- start --- KAFKA_BROKERS(%v) KAFKA_VERSION(%v)\n", KAFKA_BROKERS, KAFKA_VERSION)
 
@@ -50,10 +55,11 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/rate", PostRateHandler)
 	mux.HandleFunc("/total", GetTotalHandler)
-	mux.HandleFunc("/healthcheck", HealthCheck)
+	mux.HandleFunc("/hc", HealthCheck)
 
 	s := &http.Server{
-		Addr:    ":8080",
+		// Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%s", HTTP_PORT),
 		Handler: mux,
 	}
 
@@ -103,7 +109,7 @@ func main() {
 	}()
 
 	//stop stuff
-	sigterm := make(chan os.Signal, 1)
+	// sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigterm
@@ -125,7 +131,7 @@ func main() {
 		log.Println("reader stopped")
 	}()
 
-	log.Println("http server started on :8080")
+	log.Println("http server started on ", HTTP_PORT)
 
 	if err := s.ListenAndServe(); err != http.ErrServerClosed {
 		// panic(fmt.Errorf("error on listen and serve: %v", err))
@@ -155,17 +161,28 @@ stop_label:
 	for {
 		select {
 		case <-stop:
+			log.Println("GetTotalHandler: stop")
 			if iter != iter_prev {
 				iter_prev = iter
 				stop = time.After(time.Millisecond * 500)
 			} else {
 				break stop_label
 			}
-		case value := <-totalCH:
+		case value, ok := <-totalCH:
+			if !ok {
+				log.Println("GetTotalHandler: no value in channel")
+				break stop_label
+			}
 			sum += int(value)
 			iter++
 			// log.Println("GetTotalHandler: got value: ", value)
 			log.Println("GetTotalHandler: got value, iter: ", iter)
+		case <-r.Context().Done():
+			log.Printf("GetTotalHandler: got context done err(%v)\n", r.Context().Err())
+			break stop_label
+		case <-sigterm:
+			log.Printf("GetTotalHandler: got sigterm\n")
+			break stop_label
 		default:
 			time.Sleep(time.Millisecond * 1)
 		}

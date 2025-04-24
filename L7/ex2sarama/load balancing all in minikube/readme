@@ -1,0 +1,3 @@
+not work as 
+    - kafka with localhost not responds to health check
+    - or kafka cannot bind to kafka:9092 or kafkas:9092
