@@ -1,0 +1,7 @@
+product:
+    name:
+    price:
+    description:
+
+http:
+    post /add as form
