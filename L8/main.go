@@ -27,6 +27,8 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/add", AddHandler)
 	mux.HandleFunc("/search", SearchHandler)
+	mux.HandleFunc("/getall", SearchGetAllHandler)
+	mux.HandleFunc("/searchallf", SearchAllFields)
 
 	s := &http.Server{
 		Addr:    ":8080",
@@ -114,6 +116,10 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 
 	res := es.Search(fieldName, value, "prefix")
 	log.Printf("SearchHandler: res: %v\n", len(res))
+	if len(res) == 0 {
+		w.Write([]byte("SearchHandler: no results"))
+		return
+	}
 
 	str := ""
 	for _, v := range res {
@@ -137,4 +143,44 @@ func Print(item map[string]any) string {
 	}
 
 	return fmt.Sprintf("name: %s, price: %f, description: %s\n", name, price, description)
+}
+
+// curl -d "fieldName=name&value=na" http://localhost:8080/getall
+func SearchGetAllHandler(w http.ResponseWriter, r *http.Request) {
+	res := es.SearchGetAll()
+	log.Printf("SearchGetAll: res: %v\n", len(res))
+
+	if len(res) == 0 {
+		w.Write([]byte("SearchGetAll: no results"))
+		return
+	}
+
+	str := ""
+	for _, v := range res {
+		str += Print(v)
+		log.Println(v)
+	}
+	w.Write([]byte(str))
+}
+
+// curl -d "name=name1&price=10.12&desc=desc1" http://localhost:8080/searchallf
+func SearchAllFields(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	price := r.FormValue("price")
+	desc := r.FormValue("desc")
+
+	res := es.SearchAllFields(name, price, desc)
+	log.Printf("SearchAllFields: res: %v\n", len(res))
+
+	if len(res) == 0 {
+		w.Write([]byte("SearchAllFields: no results"))
+		return
+	}
+
+	str := ""
+	for _, v := range res {
+		str += Print(v)
+		log.Println(v)
+	}
+	w.Write([]byte(str))
 }
