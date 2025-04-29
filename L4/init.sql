@@ -1,0 +1,6 @@
+CREATE DATABASE IF NOT EXISTS test;
+use test;
+CREATE TABLE IF NOT EXISTS entities (
+id INT PRIMARY KEY,
+data VARCHAR(32)
+);

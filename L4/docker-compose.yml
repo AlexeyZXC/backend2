@@ -1,0 +1,53 @@
+services:
+  acl:
+    image: mypc.ru:5000/acl:1.0.0
+    # build:
+    #   dockerfile: Dockerfile
+    #   context: .
+    #   command: "./bin/acl"
+    ports:
+      - "9092:9092"
+      - "8082:8082"
+
+  router:
+    image: mypc.ru:5000/service_rh:1.0.0
+    # build:
+    #   dockerfile: Dockerfile
+    #   context: .
+    #   command: "./bin/router"
+    ports:
+      - "9091:9091"
+      - "8081:8081"
+
+
+  mysql:
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_DATABASE: test
+    ports:
+      - "3306:3306"
+    command: --init-file /home/user/sources/geekBrains/backend2/L4/init.sql
+    volumes:
+      - ./init.sql:/home/user/sources/geekBrains/backend2/L4/init.sql
+
+  grafana:
+    image: grafana/grafana:6.4.4
+    environment:
+    - "GF_SECURITY_ADMIN_USER=admin"
+    - "GF_SECURITY_ADMIN_PASSWORD=password"
+    ports:
+      - "3000:3000"
+
+  node-exporter:
+    image: prom/node-exporter:v1.0.1
+    ports:
+      - "9100:9100"
+  
+  prometheus:
+    image: prom/prometheus:v2.22.0
+    command: --config.file /home/user/sources/geekBrains/backend2/L4/prometheus.yml
+    volumes:
+      - "./prometheus.yml:/home/user/sources/geekBrains/backend2/L4/prometheus.yml:ro"
+    ports:
+      - "9090:9090"

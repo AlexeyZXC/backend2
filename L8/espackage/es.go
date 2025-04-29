@@ -91,6 +91,8 @@ func (es *ES) Search(key, value, querytype string) []map[string]any {
 	return ret
 }
 
+// https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-combined-fields-query
+
 // query := fmt.Sprintf(`{ "query": { "combined_fields": { "query": "%s %s", "fields": ["name", "description"] } } }`, name, desc)
 // name=name1 desc=desc3
 //   {
