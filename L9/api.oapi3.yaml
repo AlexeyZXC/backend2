@@ -1,0 +1,52 @@
+# curl -X POST localhost:8080/a/b/c
+
+openapi: "3.0.0"
+
+info:
+  title: Simple service API
+  description: REST API
+  version: "1.0.0"
+
+servers:
+  - url: /api/v1
+
+paths:
+  /{cmd}/{src}/{id}:
+    post:
+      summary: Command
+      description: This is a command
+      operationId: command
+      requestBody:
+        description: json body
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      parameters:
+        - name: cmd
+          description: command
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: src
+          description: source
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          description: identity
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+        400:
+          description: bad request
+        500:
+          description: internal server error
